@@ -132,7 +132,7 @@ public class ScraperService {
         for (int i = 0; i < times.size(); i++) {
             LocalDateTime forecastTime = LocalDateTime.parse(times.get(i), OPEN_METEO_FMT);
 
-            if (forecastTime.isBefore(now)) continue; // ignora horas passadas
+            if (forecastTime.isBefore(now)) continue;
 
             Forecast f = new Forecast();
             f.setSpot(spot);
@@ -153,14 +153,14 @@ public class ScraperService {
     private int upsertAll(List<Forecast> forecasts) {
         if (forecasts.isEmpty()) return 0;
 
-        // 1 SELECT para carregar todos os registros existentes do spot
+
         Spot spot = forecasts.get(0).getSpot();
         Map<LocalDateTime, Forecast> existing = forecastRepository
                 .findBySpotOrderByForecastTimeAsc(spot)
                 .stream()
                 .collect(Collectors.toMap(Forecast::getForecastTime, f -> f));
 
-        // Merge em memória: atualiza existentes ou usa os novos
+
         List<Forecast> toSave = new ArrayList<>(forecasts.size());
         for (Forecast f : forecasts) {
             Forecast target = existing.getOrDefault(f.getForecastTime(), f);

@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Waves</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
@@ -266,6 +267,45 @@
     }
     @keyframes spin{to{transform:rotate(360deg)}}
 
+    /* ── Map ── */
+    #spot-map-wrap{
+      border-radius:var(--radius);overflow:hidden;
+      border:1px solid var(--border);margin-bottom:.9rem;
+      animation:fadeIn .3s ease;
+    }
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+    #spot-map-bar{
+      background:var(--card2);padding:.55rem 1rem;
+      display:flex;align-items:center;justify-content:space-between;
+      border-bottom:1px solid var(--border);
+    }
+    #spot-map-name{font-size:.82rem;font-weight:700;color:var(--text)}
+    #spot-map-coords{font-size:.68rem;color:var(--muted);font-family:monospace}
+    #spot-map{height:240px}
+    /* Override Leaflet popup to match dark theme */
+    .leaflet-popup-content-wrapper{background:var(--card);color:var(--text);border:1px solid var(--bhi);border-radius:.7rem;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+    .leaflet-popup-tip{background:var(--card)}
+    .leaflet-popup-content{margin:.5rem .75rem;font-size:.8rem}
+    .leaflet-control-zoom a{background:#fff!important;color:#333!important;border-color:#ccc!important}
+    .leaflet-control-zoom a:hover{background:#f4f4f4!important}
+    .leaflet-control-attribution{display:none}
+
+    /* ── Map picker ── */
+    #picker-wrap{
+      border-radius:.7rem;overflow:hidden;
+      border:1px solid var(--border);margin-top:.85rem;
+    }
+    #picker-hint{
+      background:var(--card2);padding:.45rem .85rem;
+      font-size:.68rem;color:var(--muted);
+      display:flex;align-items:center;justify-content:space-between;
+      border-bottom:1px solid var(--border);
+    }
+    #picker-hint .ph-coords{font-family:monospace;color:var(--accent);font-size:.7rem}
+    #picker-map{height:260px;cursor:crosshair}
+    /* crosshair overlay */
+    #picker-map::after{pointer-events:none}
+
     /* ── Desktop adjustments ── */
     @media(min-width:600px){
       header{padding:1rem 2rem}
@@ -318,6 +358,14 @@
       </select>
     </div>
 
+    <div id="spot-map-wrap" style="display:none;margin-top:.85rem">
+      <div id="spot-map-bar">
+        <span id="spot-map-name"></span>
+        <span id="spot-map-coords"></span>
+      </div>
+      <div id="spot-map"></div>
+    </div>
+
     <div class="fc-legend" style="margin-top:.85rem">
       <div class="fc-legend-t">Altura da onda</div>
       <span><i class="dot" style="background:#4a6a8a"></i>&lt; 0.5m</span>
@@ -348,17 +396,19 @@
       <label>Nome *</label>
       <input id="s-name" placeholder="Ex: Praia Mole"/>
     </div>
-    <div class="row2">
-      <div class="field">
-        <label>Latitude</label>
-        <input id="s-lat" type="number" step="0.000001" placeholder="-27.5934"/>
+
+    <div id="picker-wrap">
+      <div id="picker-hint">
+        <span>Toque no mapa para marcar a localizacao</span>
+        <span class="ph-coords" id="ph-coords">nenhum ponto selecionado</span>
       </div>
-      <div class="field">
-        <label>Longitude</label>
-        <input id="s-lng" type="number" step="0.000001" placeholder="-48.5078"/>
-      </div>
+      <div id="picker-map"></div>
     </div>
-    <div class="row2">
+    <!-- hidden inputs read by createSpot() -->
+    <input id="s-lat" type="hidden"/>
+    <input id="s-lng" type="hidden"/>
+
+    <div class="row2" style="margin-top:.85rem">
       <div class="field">
         <label>Regiao</label>
         <input id="s-region" placeholder="Santa Catarina"/>
@@ -413,14 +463,44 @@
     document.querySelector('.fab').style.display = name === 'spots' ? 'flex' : 'none';
   }
 
-  // ── Modal ──────────────────────────────────────────────────
+  // ── Modal + picker map ──────────────────────────────────────
+  let _pmap = null, _pmarker = null;
+
+  function _initPickerMap() {
+    if (_pmap) { _pmap.invalidateSize(); return; }
+    _pmap = L.map('picker-map', { zoomControl: true, attributionControl: false });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(_pmap);
+    _pmap.setView([-14.235, -51.925], 4);   // Brasil
+    _pmap.on('click', function(e) {
+      const lat = e.latlng.lat.toFixed(6);
+      const lng = e.latlng.lng.toFixed(6);
+      document.getElementById('s-lat').value = lat;
+      document.getElementById('s-lng').value = lng;
+      document.getElementById('ph-coords').textContent = lat + ', ' + lng;
+      const icon = L.divIcon({
+        className: '',
+        html: '<div style="width:14px;height:14px;border-radius:50%;background:#38bdf8;border:3px solid #fff;box-shadow:0 0 10px rgba(56,189,248,.8)"></div>',
+        iconSize: [14, 14], iconAnchor: [7, 7]
+      });
+      if (_pmarker) { _pmarker.setLatLng(e.latlng); }
+      else { _pmarker = L.marker(e.latlng, { icon }).addTo(_pmap); }
+      _pmap.panTo(e.latlng);
+    });
+  }
+
+  function _destroyPickerMap() {
+    if (_pmap) { _pmap.remove(); _pmap = null; _pmarker = null; }
+  }
+
   function openModal() {
     document.getElementById('overlay').classList.add('open');
     document.getElementById('s-name').focus();
+    setTimeout(() => { _initPickerMap(); }, 80);
   }
   function closeModal() {
     document.getElementById('overlay').classList.remove('open');
     clearSpotForm();
+    _destroyPickerMap();
   }
   function handleOverlayClick(e) {
     if (e.target === document.getElementById('overlay')) closeModal();
@@ -428,6 +508,7 @@
   function clearSpotForm() {
     ['s-name','s-region','s-lat','s-lng','s-orientation'].forEach(id =>
       document.getElementById(id).value = '');
+    document.getElementById('ph-coords').textContent = 'nenhum ponto selecionado';
   }
 
   // ── Spots ──────────────────────────────────────────────────
@@ -516,32 +597,106 @@
     listForecasts();
   }
 
+  // ── Map ────────────────────────────────────────────────────
+  let _map = null, _marker = null;
+  function _initMap() {
+    if (_map) return;
+    _map = L.map('spot-map', { zoomControl: true, attributionControl: false });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(_map);
+    _marker = L.marker([0, 0], {
+      icon: L.divIcon({
+        className: '',
+        html: '<div style="width:16px;height:16px;border-radius:50%;background:#38bdf8;border:3px solid #fff;box-shadow:0 0 10px rgba(56,189,248,.7)"></div>',
+        iconSize: [16, 16], iconAnchor: [8, 8]
+      })
+    });
+  }
+
+  function updateMap(spot) {
+    const wrap = document.getElementById('spot-map-wrap');
+    if (!spot || spot.latitude == null || spot.longitude == null) {
+      wrap.style.display = 'none';
+      return;
+    }
+    wrap.style.display = 'block';
+    const lat = parseFloat(spot.latitude);
+    const lng = parseFloat(spot.longitude);
+    document.getElementById('spot-map-name').textContent = spot.name;
+    document.getElementById('spot-map-coords').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+    // defer init so the container is visible before Leaflet measures it
+    setTimeout(() => {
+      _initMap();
+      _map.setView([lat, lng], 15);
+      _marker.setLatLng([lat, lng]).addTo(_map)
+        .bindPopup('<b>' + spot.name + '</b>' + (spot.region ? '<br>' + spot.region : ''));
+      _map.invalidateSize();
+    }, 50);
+  }
+
+  // ── Sun times (Open-Meteo daily) ──────────────────────────
+  async function fetchSunTimes(lat, lng) {
+    try {
+      const url = 'https://api.open-meteo.com/v1/forecast' +
+        '?latitude=' + lat + '&longitude=' + lng +
+        '&daily=sunrise,sunset&timezone=auto&forecast_days=3';
+      const res = await fetch(url);
+      const data = await res.json();
+      const map = {};
+      (data.daily.time || []).forEach((day, i) => {
+        map[day] = {
+          sunrise: data.daily.sunrise[i].substring(11, 16),  // "HH:mm"
+          sunset:  data.daily.sunset[i].substring(11, 16),
+        };
+      });
+      return map;
+    } catch { return null; }
+  }
+
   // ── Forecasts ──────────────────────────────────────────────
   async function listForecasts() {
     const id = document.getElementById('fc-spot-select').value;
     const container = document.getElementById('forecasts-container');
     if (!id) {
+      updateMap(null);
       container.innerHTML = '<div class="empty"><div class="empty-icon">🌊</div><p>Selecione um spot para ver as previsoes.</p></div>';
       return;
     }
+    const spot = allSpots.find(s => String(s.id) === String(id)) || null;
+    updateMap(spot);
     container.innerHTML = '<div class="empty"><div class="spinner"></div><p>Carregando...</p></div>';
-    const r = await request('GET', '/api/spots/' + id + '/forecasts');
+
+    const [r, sunTimes] = await Promise.all([
+      request('GET', '/api/spots/' + id + '/forecasts'),
+      (spot && spot.latitude != null && spot.longitude != null)
+        ? fetchSunTimes(spot.latitude, spot.longitude)
+        : Promise.resolve(null),
+    ]);
+
     if (!r.ok || !Array.isArray(r.data) || r.data.length === 0) {
       container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><p>Sem previsoes. Execute o Crawl primeiro.</p></div>';
       return;
     }
     const byDay = {};
     r.data.forEach(f => {
-      const day = f.forecastTime.substring(0, 10);
+      const day  = f.forecastTime.substring(0, 10);
+      const time = f.forecastTime.substring(11, 16);
+      if (sunTimes && sunTimes[day]) {
+        if (time < sunTimes[day].sunrise || time > sunTimes[day].sunset) return;
+      }
       if (!byDay[day]) byDay[day] = [];
       byDay[day].push(f);
     });
-    container.innerHTML = Object.entries(byDay).map(([day, items]) =>
-      '<div class="fc-day">' +
-      '<div class="fc-day-label">' + fmtDay(day) + '</div>' +
-      '<div class="fc-scroll">' + items.map(fcCard).join('') + '</div>' +
-      '</div>'
-    ).join('');
+    container.innerHTML = Object.entries(byDay).map(([day, items]) => {
+      const sun = sunTimes && sunTimes[day];
+      const sunBar = sun
+        ? '<span style="font-size:.62rem;font-weight:400;color:var(--muted);margin-left:.5rem">' +
+          '🌅 ' + sun.sunrise + ' &ndash; 🌇 ' + sun.sunset + '</span>'
+        : '';
+      return '<div class="fc-day">' +
+        '<div class="fc-day-label">' + fmtDay(day) + sunBar + '</div>' +
+        '<div class="fc-scroll">' + items.map(fcCard).join('') + '</div>' +
+        '</div>';
+    }).join('');
   }
 
   function fmtDay(d) {
@@ -580,5 +735,6 @@
 
   listSpots();
 </script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>
