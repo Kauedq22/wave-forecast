@@ -1,0 +1,584 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Waves</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+    :root{
+      --bg:#060e1a;
+      --surf:#0c1a2e;
+      --card:#0f2040;
+      --card2:#122448;
+      --border:#1a3050;
+      --bhi:#2a4e7a;
+      --text:#d0e0f0;
+      --muted:#4a6a8a;
+      --accent:#38bdf8;
+      --accentd:#0284c7;
+      --green:#22c55e;
+      --yellow:#f59e0b;
+      --red:#f43f5e;
+      --orange:#f97316;
+      --radius:1rem;
+    }
+
+    html,body{height:100%;overflow:hidden}
+    body{
+      font-family:'Segoe UI',system-ui,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      display:flex;
+      flex-direction:column;
+    }
+
+    /* ── Header ── */
+    header{
+      background:linear-gradient(135deg,#08152a,#0d2244,#071a38);
+      border-bottom:1px solid var(--border);
+      padding:.9rem 1.25rem;
+      display:flex;align-items:center;gap:.75rem;
+      flex-shrink:0;
+      position:relative;
+    }
+    header::after{
+      content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+      background:linear-gradient(90deg,transparent,var(--accent),transparent);
+      opacity:.4;
+    }
+    .logo-box{
+      width:36px;height:36px;
+      background:linear-gradient(135deg,var(--accentd),#0ea5e9);
+      border-radius:.6rem;
+      display:flex;align-items:center;justify-content:center;
+      font-size:1.1rem;flex-shrink:0;
+      box-shadow:0 0 12px rgba(56,189,248,.3);
+    }
+    .title-group h1{font-size:1.1rem;font-weight:800;color:var(--accent);letter-spacing:-.02em}
+    .title-group p{font-size:.68rem;color:var(--muted);margin-top:.05rem}
+    .online-badge{
+      margin-left:auto;display:flex;align-items:center;gap:.4rem;
+      background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);
+      border-radius:2rem;padding:.2rem .6rem;
+    }
+    .online-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green)}
+    .online-badge span{font-size:.65rem;color:var(--green);font-weight:700}
+
+    /* ── Tabs ── */
+    nav{
+      background:var(--surf);
+      border-bottom:1px solid var(--border);
+      display:flex;flex-shrink:0;
+    }
+    .tab{
+      flex:1;padding:.75rem .5rem;
+      text-align:center;font-size:.78rem;font-weight:600;
+      color:var(--muted);border-bottom:2px solid transparent;
+      cursor:pointer;transition:color .2s,border-color .2s;
+      display:flex;flex-direction:column;align-items:center;gap:.2rem;
+      user-select:none;
+    }
+    .tab .tab-icon{font-size:1.1rem}
+    .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+    .tab:hover:not(.active){color:var(--text)}
+
+    /* ── Main scroll area ── */
+    main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+    main::-webkit-scrollbar{width:4px}
+    main::-webkit-scrollbar-track{background:transparent}
+    main::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+    .page{display:none;padding:1rem;max-width:700px;margin:0 auto;padding-bottom:1.5rem}
+    .page.active{display:block}
+
+    /* ── Section label ── */
+    .slabel{
+      font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.14em;
+      color:var(--muted);margin:1.25rem 0 .7rem;
+      display:flex;align-items:center;gap:.5rem;
+    }
+    .slabel::after{content:'';flex:1;height:1px;background:var(--border)}
+
+    /* ── Spot cards ── */
+    .spot-list{display:flex;flex-direction:column;gap:.75rem}
+    .spot-card{
+      background:var(--card);border:1px solid var(--border);
+      border-radius:var(--radius);padding:1rem 1.1rem;
+      display:flex;align-items:center;gap:1rem;
+      transition:border-color .2s,background .2s;
+      position:relative;overflow:hidden;
+    }
+    .spot-card::before{
+      content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+      background:linear-gradient(180deg,var(--accent),var(--accentd));
+      border-radius:2px 0 0 2px;
+    }
+    .spot-card:hover{border-color:var(--bhi);background:var(--card2)}
+    .spot-avatar{
+      width:42px;height:42px;flex-shrink:0;
+      background:linear-gradient(135deg,var(--card2),#0a1f3a);
+      border:1px solid var(--bhi);border-radius:.7rem;
+      display:flex;align-items:center;justify-content:center;font-size:1.3rem;
+    }
+    .spot-info{flex:1;min-width:0}
+    .spot-name{font-weight:700;font-size:.92rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .spot-meta{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem}
+    .badge{
+      font-size:.62rem;font-weight:700;padding:.15rem .45rem;
+      border-radius:.3rem;background:var(--surf);border:1px solid var(--border);color:var(--muted);
+    }
+    .badge.accent{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.25);color:var(--accent)}
+    .spot-actions{display:flex;gap:.4rem;flex-shrink:0}
+
+    /* ── Buttons ── */
+    .btn{
+      cursor:pointer;border:none;border-radius:.55rem;
+      font-size:.78rem;font-weight:700;letter-spacing:.02em;
+      display:inline-flex;align-items:center;justify-content:center;gap:.3rem;
+      transition:opacity .15s,transform .1s;
+      padding:.45rem .9rem;
+    }
+    .btn:hover{opacity:.85}
+    .btn:active{transform:scale(.96)}
+    .btn-sm{padding:.3rem .6rem;font-size:.7rem;border-radius:.4rem}
+    .btn-p{background:var(--accent);color:#03111f}
+    .btn-g{background:var(--green);color:#021508}
+    .btn-r{background:var(--red);color:#fff}
+    .btn-y{background:var(--yellow);color:#1a0900}
+    .btn-s{background:var(--surf);color:var(--text);border:1px solid var(--bhi)}
+    .btn-full{width:100%;padding:.7rem}
+
+    /* ── FAB ── */
+    .fab{
+      position:fixed;right:1.25rem;bottom:1.5rem;
+      width:52px;height:52px;border-radius:50%;
+      background:linear-gradient(135deg,var(--accent),var(--accentd));
+      color:#03111f;font-size:1.5rem;font-weight:700;
+      border:none;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 4px 20px rgba(56,189,248,.35);
+      transition:transform .2s,box-shadow .2s;
+      z-index:50;
+    }
+    .fab:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(56,189,248,.45)}
+    .fab:active{transform:scale(.94)}
+
+    /* ── Modal ── */
+    .overlay{
+      display:none;position:fixed;inset:0;z-index:200;
+      background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
+      align-items:flex-end;justify-content:center;
+    }
+    .overlay.open{display:flex}
+    .modal{
+      background:var(--surf);
+      border:1px solid var(--border);
+      border-radius:1.25rem 1.25rem 0 0;
+      padding:1.5rem 1.25rem 2rem;
+      width:100%;max-width:600px;
+      max-height:90vh;overflow-y:auto;
+      animation:slideup .25s ease;
+    }
+    @keyframes slideup{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
+    .modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto .75rem}
+    .modal-title{font-size:1rem;font-weight:700;color:var(--text);margin-bottom:1.25rem;text-align:center}
+
+    /* ── Form ── */
+    .field{margin-top:.85rem}
+    .field:first-of-type{margin-top:0}
+    .field label{
+      display:block;font-size:.68rem;font-weight:800;
+      color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.3rem;
+    }
+    .field input,.field select{
+      width:100%;background:var(--card);border:1px solid var(--border);
+      border-radius:.6rem;color:var(--text);padding:.65rem .85rem;
+      font-size:.88rem;outline:none;transition:border-color .15s,box-shadow .15s;
+    }
+    .field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.1)}
+    .field select option{background:var(--card)}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
+
+    /* ── Text hint ── */
+    .hint{font-size:.7rem;color:var(--muted);margin-top:.25rem}
+
+    /* ── Forecast ── */
+    .fc-day{margin-bottom:1.5rem}
+    .fc-day-label{
+      font-size:.68rem;font-weight:800;color:var(--accent);text-transform:uppercase;
+      letter-spacing:.12em;margin-bottom:.6rem;padding-bottom:.4rem;
+      border-bottom:1px solid var(--border);
+    }
+    .fc-scroll{display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.4rem}
+    .fc-scroll::-webkit-scrollbar{height:3px}
+    .fc-scroll::-webkit-scrollbar-thumb{background:var(--bhi);border-radius:2px}
+    .fc-h{
+      flex:0 0 80px;background:var(--card);border:1px solid var(--border);
+      border-radius:.7rem;padding:.6rem .35rem;text-align:center;
+      transition:border-color .2s,transform .15s;
+    }
+    .fc-h:hover{border-color:var(--bhi);transform:translateY(-2px)}
+    .fc-htime{color:var(--muted);font-size:.62rem;font-weight:800;letter-spacing:.04em;margin-bottom:.35rem}
+    .fc-wh{font-size:1.1rem;font-weight:900;line-height:1;margin-bottom:.08rem}
+    .fc-wp{color:var(--muted);font-size:.62rem;margin-bottom:.2rem}
+    .fc-wd{font-size:.62rem;color:#7dd3fc;margin-bottom:.28rem}
+    .fc-sep{border:none;border-top:1px solid var(--border);margin:.28rem 0}
+    .fc-ws{font-size:.72rem;font-weight:700}
+    .fc-wdir{font-size:.6rem;color:var(--muted);margin-top:.1rem}
+
+    .fc-legend{
+      display:flex;gap:.6rem;flex-wrap:wrap;
+      padding:.55rem .8rem;margin-bottom:.9rem;
+      background:var(--card);border:1px solid var(--border);border-radius:.7rem;
+      font-size:.68rem;align-items:center;
+    }
+    .fc-legend-t{color:var(--muted);font-weight:700;width:100%;margin-bottom:.1rem}
+    .fc-legend span{display:flex;align-items:center;gap:.28rem;color:var(--muted)}
+    .dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+
+    .empty{
+      text-align:center;padding:3.5rem 1rem;color:var(--muted);
+      display:flex;flex-direction:column;align-items:center;gap:.75rem;
+    }
+    .empty-icon{font-size:2.5rem;opacity:.4}
+    .empty p{font-size:.85rem}
+
+    /* ── Toast ── */
+    #toast{
+      position:fixed;bottom:1.75rem;left:50%;transform:translateX(-50%) translateY(10px);
+      padding:.65rem 1.2rem;border-radius:2rem;
+      font-size:.8rem;font-weight:700;
+      opacity:0;transition:opacity .25s,transform .25s;
+      pointer-events:none;z-index:999;white-space:nowrap;
+      max-width:90vw;text-align:center;
+    }
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    #toast.ok{background:#052e16;border:1px solid var(--green);color:var(--green)}
+    #toast.err{background:#1e0a0f;border:1px solid var(--red);color:#fca5a5}
+
+    /* ── Loading spinner ── */
+    .spinner{
+      display:inline-block;width:16px;height:16px;
+      border:2px solid var(--border);border-top-color:var(--accent);
+      border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── Desktop adjustments ── */
+    @media(min-width:600px){
+      header{padding:1rem 2rem}
+      .page{padding:1.5rem 1.5rem}
+      .modal{border-radius:1.25rem;margin-bottom:2rem}
+      .overlay{align-items:center}
+      .fab{right:2rem;bottom:2rem}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-box">🌊</div>
+  <div class="title-group">
+    <h1>Waves</h1>
+    <p>Previsoes de surf</p>
+  </div>
+  <div class="online-badge">
+    <div class="online-dot"></div>
+    <span>Online</span>
+  </div>
+</header>
+
+<nav>
+  <div class="tab active" onclick="showTab('spots')">
+    <span class="tab-icon">📍</span>Spots
+  </div>
+  <div class="tab" onclick="showTab('forecast')">
+    <span class="tab-icon">🌊</span>Previsao
+  </div>
+</nav>
+
+<main>
+
+  <!-- ── Spots page ── -->
+  <div id="page-spots" class="page active">
+    <div class="slabel">Meus Spots</div>
+    <div id="spot-list" class="spot-list">
+      <div class="empty"><div class="empty-icon">📍</div><p>Carregando spots...</p></div>
+    </div>
+  </div>
+
+  <!-- ── Forecast page ── -->
+  <div id="page-forecast" class="page">
+    <div class="field" style="margin-top:0">
+      <label>Selecionar spot</label>
+      <select id="fc-spot-select" onchange="listForecasts()">
+        <option value="">- selecione um spot -</option>
+      </select>
+    </div>
+
+    <div class="fc-legend" style="margin-top:.85rem">
+      <div class="fc-legend-t">Altura da onda</div>
+      <span><i class="dot" style="background:#4a6a8a"></i>&lt; 0.5m</span>
+      <span><i class="dot" style="background:#38bdf8"></i>0.5-1m</span>
+      <span><i class="dot" style="background:#22c55e"></i>1-1.5m</span>
+      <span><i class="dot" style="background:#facc15"></i>1.5-2m</span>
+      <span><i class="dot" style="background:#f97316"></i>2-3m</span>
+      <span><i class="dot" style="background:#f43f5e"></i>&gt;3m</span>
+    </div>
+
+    <div id="forecasts-container">
+      <div class="empty"><div class="empty-icon">🌊</div><p>Selecione um spot para ver as previsoes.</p></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- FAB -->
+<button class="fab" onclick="openModal()" title="Adicionar spot">+</button>
+
+<!-- Modal cadastro -->
+<div class="overlay" id="overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Novo Spot</div>
+
+    <div class="field">
+      <label>Nome *</label>
+      <input id="s-name" placeholder="Ex: Praia Mole"/>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Latitude</label>
+        <input id="s-lat" type="number" step="0.000001" placeholder="-27.5934"/>
+      </div>
+      <div class="field">
+        <label>Longitude</label>
+        <input id="s-lng" type="number" step="0.000001" placeholder="-48.5078"/>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Regiao</label>
+        <input id="s-region" placeholder="Santa Catarina"/>
+      </div>
+      <div class="field">
+        <label>Orientacao</label>
+        <input id="s-orientation" placeholder="SW" maxlength="10"/>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:.5rem">* Campo obrigatorio</p>
+
+    <div style="display:flex;gap:.6rem;margin-top:1.25rem">
+      <button class="btn btn-s" style="flex:1" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-p" style="flex:2" onclick="createSpot()">Salvar spot</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const BASE = '';
+  let allSpots = [];
+  let toastTimer;
+
+  // ── Toast ──────────────────────────────────────────────────
+  function toast(msg, ok = true) {
+    const el = document.getElementById('toast');
+    clearTimeout(toastTimer);
+    el.textContent = msg;
+    el.className = 'show ' + (ok ? 'ok' : 'err');
+    toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+  }
+
+  // ── HTTP ───────────────────────────────────────────────────
+  async function request(method, path, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(BASE + path, opts);
+    const text = await res.text();
+    let data; try { data = JSON.parse(text); } catch { data = text; }
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  // ── Tabs ───────────────────────────────────────────────────
+  function showTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.getElementById('page-' + name).classList.add('active');
+    document.querySelector('main').scrollTop = 0;
+    document.querySelector('.fab').style.display = name === 'spots' ? 'flex' : 'none';
+  }
+
+  // ── Modal ──────────────────────────────────────────────────
+  function openModal() {
+    document.getElementById('overlay').classList.add('open');
+    document.getElementById('s-name').focus();
+  }
+  function closeModal() {
+    document.getElementById('overlay').classList.remove('open');
+    clearSpotForm();
+  }
+  function handleOverlayClick(e) {
+    if (e.target === document.getElementById('overlay')) closeModal();
+  }
+  function clearSpotForm() {
+    ['s-name','s-region','s-lat','s-lng','s-orientation'].forEach(id =>
+      document.getElementById(id).value = '');
+  }
+
+  // ── Spots ──────────────────────────────────────────────────
+  async function createSpot() {
+    const body = {
+      name:             document.getElementById('s-name').value.trim(),
+      region:           document.getElementById('s-region').value.trim()      || null,
+      latitude:         document.getElementById('s-lat').value                || null,
+      longitude:        document.getElementById('s-lng').value                || null,
+      coastOrientation: document.getElementById('s-orientation').value.trim() || null,
+    };
+    if (!body.name) { toast('Preencha o campo Nome.', false); return; }
+    const r = await request('POST', '/api/spots', body);
+    if (r.ok) {
+      toast('Spot "' + body.name + '" criado!');
+      closeModal();
+      listSpots();
+    } else {
+      toast('Erro ao criar spot.', false);
+    }
+  }
+
+  async function deleteSpot(id, name) {
+    if (!confirm('Deletar "' + name + '"?')) return;
+    const r = await request('DELETE', '/api/spots/' + id);
+    if (r.ok) { toast('"' + name + '" deletado.'); listSpots(); }
+    else toast('Erro ao deletar.', false);
+  }
+
+  async function crawlSpot(id, name) {
+    toast('Buscando previsao para ' + name + '...', true);
+    const r = await request('POST', '/api/crawler/run/' + id);
+    if (r.ok) {
+      const count = typeof r.data === 'number' ? r.data : (r.data?.recordsSaved ?? '?');
+      toast(count + ' previsoes salvas para ' + name + '!');
+    } else {
+      toast('Falha no crawl de ' + name + '.', false);
+    }
+  }
+
+  async function listSpots() {
+    const r = await request('GET', '/api/spots');
+    const list = document.getElementById('spot-list');
+    if (!r.ok || !Array.isArray(r.data) || r.data.length === 0) {
+      list.innerHTML = '<div class="empty"><div class="empty-icon">📍</div><p>Nenhum spot cadastrado.<br>Toque no + para adicionar.</p></div>';
+      syncFcSelect([]);
+      return;
+    }
+    allSpots = r.data;
+    syncFcSelect(r.data);
+    list.innerHTML = r.data.map(s => {
+      const lat = s.latitude  != null ? parseFloat(s.latitude).toFixed(4)  : null;
+      const lng = s.longitude != null ? parseFloat(s.longitude).toFixed(4) : null;
+      const safeName = s.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      const coord = lat && lng ? lat + ', ' + lng : null;
+      return '<div class="spot-card">' +
+        '<div class="spot-avatar">🏄</div>' +
+        '<div class="spot-info">' +
+          '<div class="spot-name">' + s.name + '</div>' +
+          '<div class="spot-meta">' +
+            (s.region ? '<span class="badge">' + s.region + '</span>' : '') +
+            (s.coastOrientation ? '<span class="badge accent">' + s.coastOrientation + '</span>' : '') +
+            (coord ? '<span class="badge" style="font-family:monospace">' + coord + '</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="spot-actions">' +
+          '<button class="btn btn-y btn-sm" onclick="crawlSpot(\'' + s.id + '\',\'' + safeName + '\')">Crawl</button>' +
+          '<button class="btn btn-p btn-sm" onclick="openForecast(\'' + s.id + '\')">Ver</button>' +
+          '<button class="btn btn-r btn-sm" onclick="deleteSpot(\'' + s.id + '\',\'' + safeName + '\')">&#x2715;</button>' +
+        '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function syncFcSelect(spots) {
+    const sel = document.getElementById('fc-spot-select');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">- selecione um spot -</option>' +
+      spots.map(s => '<option value="' + s.id + '">' + s.name + '</option>').join('');
+    if (prev) sel.value = prev;
+  }
+
+  function openForecast(id) {
+    document.querySelectorAll('.tab')[1].click();
+    document.getElementById('fc-spot-select').value = id;
+    listForecasts();
+  }
+
+  // ── Forecasts ──────────────────────────────────────────────
+  async function listForecasts() {
+    const id = document.getElementById('fc-spot-select').value;
+    const container = document.getElementById('forecasts-container');
+    if (!id) {
+      container.innerHTML = '<div class="empty"><div class="empty-icon">🌊</div><p>Selecione um spot para ver as previsoes.</p></div>';
+      return;
+    }
+    container.innerHTML = '<div class="empty"><div class="spinner"></div><p>Carregando...</p></div>';
+    const r = await request('GET', '/api/spots/' + id + '/forecasts');
+    if (!r.ok || !Array.isArray(r.data) || r.data.length === 0) {
+      container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><p>Sem previsoes. Execute o Crawl primeiro.</p></div>';
+      return;
+    }
+    const byDay = {};
+    r.data.forEach(f => {
+      const day = f.forecastTime.substring(0, 10);
+      if (!byDay[day]) byDay[day] = [];
+      byDay[day].push(f);
+    });
+    container.innerHTML = Object.entries(byDay).map(([day, items]) =>
+      '<div class="fc-day">' +
+      '<div class="fc-day-label">' + fmtDay(day) + '</div>' +
+      '<div class="fc-scroll">' + items.map(fcCard).join('') + '</div>' +
+      '</div>'
+    ).join('');
+  }
+
+  function fmtDay(d) {
+    return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+  }
+
+  function waveColor(h) {
+    if (h == null) return 'var(--muted)';
+    const v = parseFloat(h);
+    if (v < 0.5) return '#4a6a8a';
+    if (v < 1.0) return '#38bdf8';
+    if (v < 1.5) return '#22c55e';
+    if (v < 2.0) return '#facc15';
+    if (v < 3.0) return '#f97316';
+    return '#f43f5e';
+  }
+
+  function fcCard(f) {
+    const time = f.forecastTime.substring(11, 16);
+    const wh   = f.waveHeight  != null ? parseFloat(f.waveHeight).toFixed(1) + 'm' : '-';
+    const wp   = f.wavePeriod  != null ? f.wavePeriod + 's' : '-';
+    const wd   = f.waveDirection   ?? '-';
+    const ws   = f.windSpeed   != null ? Math.round(parseFloat(f.windSpeed)) + ' km' : '-';
+    const wdir = f.windDirection   ?? '-';
+    const col  = waveColor(f.waveHeight);
+    return '<div class="fc-h">' +
+      '<div class="fc-htime">' + time + '</div>' +
+      '<div class="fc-wh" style="color:' + col + '">' + wh + '</div>' +
+      '<div class="fc-wp">' + wp + '</div>' +
+      '<div class="fc-wd">' + wd + '</div>' +
+      '<hr class="fc-sep">' +
+      '<div class="fc-ws">' + ws + '</div>' +
+      '<div class="fc-wdir">' + wdir + '</div>' +
+      '</div>';
+  }
+
+  listSpots();
+</script>
+</body>
+</html>
