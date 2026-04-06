@@ -173,7 +173,7 @@ public class ScraperService {
             toSave.add(target);
         }
 
-        // 1 saveAll em vez de N saves individuais (Hibernate agrupa em batch)
+
         forecastRepository.saveAll(toSave);
         return toSave.size();
     }
