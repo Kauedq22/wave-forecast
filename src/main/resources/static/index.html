@@ -239,6 +239,26 @@
     .fc-legend span{display:flex;align-items:center;gap:.28rem;color:var(--muted)}
     .dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
 
+    /* ── Tide table ── */
+    .tide-day-block{
+      margin-bottom:1rem;
+    }
+    .tide-card{
+      flex:0 0 72px;background:var(--card);border:1px solid var(--border);
+      border-radius:.7rem;padding:.55rem .35rem;text-align:center;
+      transition:border-color .2s,transform .15s;position:relative;
+    }
+    .tide-card:hover{border-color:var(--bhi);transform:translateY(-2px)}
+    .tide-card.tide-peak{border-color:#f97316;background:rgba(249,115,22,.06)}
+    .tide-card.tide-valley{border-color:#38bdf8;background:rgba(56,189,248,.06)}
+    .tide-ctime{color:var(--muted);font-size:.62rem;font-weight:800;letter-spacing:.04em;margin-bottom:.3rem}
+    .tide-ch{font-size:1rem;font-weight:900;line-height:1;margin-bottom:.15rem}
+    .tide-alta{color:#f97316}
+    .tide-baixa{color:#38bdf8}
+    .tide-neutral{color:var(--muted)}
+    .tide-badge{font-size:.58rem;font-weight:700;margin-bottom:.15rem}
+    .tide-trend{font-size:.62rem;color:var(--muted)}
+
     .empty{
       text-align:center;padding:3.5rem 1rem;color:var(--muted);
       display:flex;flex-direction:column;align-items:center;gap:.75rem;
@@ -378,6 +398,11 @@
 
     <div id="forecasts-container">
       <div class="empty"><div class="empty-icon">🌊</div><p>Selecione um spot para ver as previsoes.</p></div>
+    </div>
+
+    <div id="tide-section" style="display:none">
+      <div class="slabel">Tábua de Marés</div>
+      <div id="tide-container"></div>
     </div>
   </div>
 
@@ -633,31 +658,16 @@
     }, 50);
   }
 
-  // ── Sun times (Open-Meteo daily) ──────────────────────────
-  async function fetchSunTimes(lat, lng) {
-    try {
-      const url = 'https://api.open-meteo.com/v1/forecast' +
-        '?latitude=' + lat + '&longitude=' + lng +
-        '&daily=sunrise,sunset&timezone=auto&forecast_days=3';
-      const res = await fetch(url);
-      const data = await res.json();
-      const map = {};
-      (data.daily.time || []).forEach((day, i) => {
-        map[day] = {
-          sunrise: data.daily.sunrise[i].substring(11, 16),  // "HH:mm"
-          sunset:  data.daily.sunset[i].substring(11, 16),
-        };
-      });
-      return map;
-    } catch { return null; }
-  }
-
   // ── Forecasts ──────────────────────────────────────────────
+  const FC_START = '05:00';
+  const FC_END   = '20:00';
+
   async function listForecasts() {
     const id = document.getElementById('fc-spot-select').value;
     const container = document.getElementById('forecasts-container');
     if (!id) {
       updateMap(null);
+      renderTideTable([]);
       container.innerHTML = '<div class="empty"><div class="empty-icon">🌊</div><p>Selecione um spot para ver as previsoes.</p></div>';
       return;
     }
@@ -665,35 +675,27 @@
     updateMap(spot);
     container.innerHTML = '<div class="empty"><div class="spinner"></div><p>Carregando...</p></div>';
 
-    const [r, sunTimes] = await Promise.all([
-      request('GET', '/api/spots/' + id + '/forecasts'),
-      (spot && spot.latitude != null && spot.longitude != null)
-        ? fetchSunTimes(spot.latitude, spot.longitude)
-        : Promise.resolve(null),
-    ]);
+    const r = await request('GET', '/api/spots/' + id + '/forecasts');
 
     if (!r.ok || !Array.isArray(r.data) || r.data.length === 0) {
+      renderTideTable([]);
       container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><p>Sem previsoes. Execute o Crawl primeiro.</p></div>';
       return;
     }
+    renderTideTable(r.data);
     const byDay = {};
     r.data.forEach(f => {
       const day  = f.forecastTime.substring(0, 10);
       const time = f.forecastTime.substring(11, 16);
-      if (sunTimes && sunTimes[day]) {
-        if (time < sunTimes[day].sunrise || time > sunTimes[day].sunset) return;
-      }
+      if (time < FC_START || time > FC_END) return;
       if (!byDay[day]) byDay[day] = [];
       byDay[day].push(f);
     });
     container.innerHTML = Object.entries(byDay).map(([day, items]) => {
-      const sun = sunTimes && sunTimes[day];
-      const sunBar = sun
-        ? '<span style="font-size:.62rem;font-weight:400;color:var(--muted);margin-left:.5rem">' +
-          '🌅 ' + sun.sunrise + ' &ndash; 🌇 ' + sun.sunset + '</span>'
-        : '';
+      const rangeBar = '<span style="font-size:.62rem;font-weight:400;color:var(--muted);margin-left:.5rem">' +
+        '⏰ ' + FC_START + ' &ndash; ' + FC_END + '</span>';
       return '<div class="fc-day">' +
-        '<div class="fc-day-label">' + fmtDay(day) + sunBar + '</div>' +
+        '<div class="fc-day-label">' + fmtDay(day) + rangeBar + '</div>' +
         '<div class="fc-scroll">' + items.map(fcCard).join('') + '</div>' +
         '</div>';
     }).join('');
@@ -731,6 +733,77 @@
       '<div class="fc-ws">' + ws + '</div>' +
       '<div class="fc-wdir">' + wdir + '</div>' +
       '</div>';
+  }
+
+  // ── Tide table ──────────────────────────────────────────────
+  function renderTideTable(allData) {
+    const section   = document.getElementById('tide-section');
+    const container = document.getElementById('tide-container');
+
+    if (!allData || allData.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+
+    const hasTide = allData.some(f => f.tideHeight != null);
+    if (!hasTide) {
+      section.style.display = 'block';
+      container.innerHTML =
+        '<div class="empty" style="padding:1.5rem"><div class="empty-icon" style="font-size:1.6rem">🌊</div>' +
+        '<p style="font-size:.78rem">Dados de maré não encontrados.<br>' +
+        '<b style="color:var(--accent)">Execute o Crawl novamente</b> para obter a tábua de marés.</p></div>';
+      return;
+    }
+    section.style.display = 'block';
+
+    // Group all items with tide data by day
+    const byDay = {};
+    allData.forEach(f => {
+      if (f.tideHeight == null) return;
+      const day = f.forecastTime.substring(0, 10);
+      if (!byDay[day]) byDay[day] = [];
+      byDay[day].push(f);
+    });
+
+    container.innerHTML = Object.entries(byDay).map(([day, items]) => {
+      // Find daily max and min
+      const heights = items.map(f => parseFloat(f.tideHeight));
+      const maxH = Math.max(...heights);
+      const minH = Math.min(...heights);
+      const range = maxH - minH;
+
+      const cards = items.map(f => {
+        const time = f.forecastTime.substring(11, 16);
+        const hVal = parseFloat(f.tideHeight);
+        const hStr = hVal.toFixed(2) + 'm';
+        const isPeak   = range > 0.05 && Math.abs(hVal - maxH) < 0.001;
+        const isValley = range > 0.05 && Math.abs(hVal - minH) < 0.001;
+        const cls = isPeak ? 'tide-card tide-peak' : isValley ? 'tide-card tide-valley' : 'tide-card';
+        const hCls = isPeak ? 'tide-ch tide-alta' : isValley ? 'tide-ch tide-baixa' : 'tide-ch tide-neutral';
+        const badge = isPeak
+          ? '<div class="tide-badge tide-alta">▲ Alta</div>'
+          : isValley
+          ? '<div class="tide-badge tide-baixa">▼ Baixa</div>'
+          : '<div class="tide-badge" style="visibility:hidden">&nbsp;</div>';
+        const trendIcon = f.tideTrend === 'enchendo' ? '↑'
+          : f.tideTrend === 'vazando' ? '↓'
+          : '→';
+        return '<div class="' + cls + '">' +
+          '<div class="tide-ctime">' + time + '</div>' +
+          badge +
+          '<div class="' + hCls + '">' + hStr + '</div>' +
+          '<div class="tide-trend">' + trendIcon + '</div>' +
+          '</div>';
+      }).join('');
+
+      const rangeBar = '<span style="font-size:.62rem;font-weight:400;color:var(--muted);margin-left:.5rem">' +
+        'amplitude ' + (maxH - minH).toFixed(2) + 'm</span>';
+
+      return '<div class="tide-day-block">' +
+        '<div class="fc-day-label" style="color:#7dd3fc">' + fmtDay(day) + rangeBar + '</div>' +
+        '<div class="fc-scroll">' + cards + '</div>' +
+        '</div>';
+    }).join('');
   }
 
   listSpots();

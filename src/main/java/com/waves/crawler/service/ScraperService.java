@@ -38,7 +38,7 @@ public class ScraperService {
     private static final String MARINE_URL =
         "https://marine-api.open-meteo.com/v1/marine" +
         "?latitude=%s&longitude=%s" +
-        "&hourly=wave_height,wave_period,wave_direction" +
+        "&hourly=wave_height,wave_period,wave_direction,sea_level_height_msl" +
         "&timezone=auto&forecast_days=3";
 
     private static final String WIND_URL =
@@ -123,6 +123,7 @@ public class ScraperService {
         List<Number> waveHeights    = (List<Number>) marineHourly.get("wave_height");
         List<Number> wavePeriods    = (List<Number>) marineHourly.get("wave_period");
         List<Number> waveDirections = (List<Number>) marineHourly.get("wave_direction");
+        List<Number> seaLevels      = (List<Number>) marineHourly.get("sea_level_height_msl");
         List<Number> windSpeeds     = (List<Number>) windHourly.get("wind_speed_10m");
         List<Number> windDirs       = (List<Number>) windHourly.get("wind_direction_10m");
 
@@ -143,7 +144,24 @@ public class ScraperService {
             f.setWaveDirection(degreesToCardinal(waveDirections.get(i)));
             f.setWindSpeed(toDecimal(windSpeeds.get(i)));
             f.setWindDirection(degreesToCardinal(windDirs.get(i)));
+            f.setTideHeight(seaLevels != null ? toDecimal(seaLevels.get(i)) : null);
             forecasts.add(f);
+        }
+
+        // Compute tide trend by comparing consecutive sea level values
+        for (int i = 0; i < forecasts.size(); i++) {
+            BigDecimal curr = forecasts.get(i).getTideHeight();
+            if (curr == null) continue;
+            BigDecimal next = null;
+            for (int j = i + 1; j < forecasts.size() && j <= i + 2; j++) {
+                next = forecasts.get(j).getTideHeight();
+                if (next != null) break;
+            }
+            if (next == null) continue;
+            double diff = next.doubleValue() - curr.doubleValue();
+            if (diff > 0.01)       forecasts.get(i).setTideTrend("enchendo");
+            else if (diff < -0.01) forecasts.get(i).setTideTrend("vazando");
+            else                   forecasts.get(i).setTideTrend("estavel");
         }
 
         log.info("Open-Meteo retornou {} horas de previsão para '{}'", forecasts.size(), spot.getName());
@@ -169,6 +187,8 @@ public class ScraperService {
             target.setWaveDirection(f.getWaveDirection());
             target.setWindSpeed(f.getWindSpeed());
             target.setWindDirection(f.getWindDirection());
+            target.setTideHeight(f.getTideHeight());
+            target.setTideTrend(f.getTideTrend());
             target.setCapturedAt(f.getCapturedAt());
             toSave.add(target);
         }
